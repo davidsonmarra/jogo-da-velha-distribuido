@@ -76,14 +76,13 @@ document.addEventListener("DOMContentLoaded", () => {
   // Eventos do tabuleiro
   cells.forEach((cell) => {
     cell.addEventListener("click", () => {
-      console.log("Célula clicada:", {
+      console.log("Tentativa de jogada:", {
         isMyTurn,
-        isEmpty: cell.textContent === "",
-        content: cell.textContent,
+        playerSymbol,
+        currentRoom,
+        cellContent: cell.textContent,
         row: cell.dataset.row,
         col: cell.dataset.col,
-        currentRoom,
-        playerSymbol,
       });
 
       if (!isMyTurn) {
@@ -103,6 +102,7 @@ document.addEventListener("DOMContentLoaded", () => {
         room: currentRoom,
         row,
         col,
+        playerSymbol,
       });
 
       socket.emit("make_move", {
@@ -132,29 +132,56 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   socket.on("your_turn", (data) => {
-    console.log("Sua vez:", data);
+    console.log("Sua vez:", {
+      data,
+      previousTurn: isMyTurn,
+      symbol: data.symbol,
+      currentRoom,
+    });
+
     playerSymbol = data.symbol;
     isMyTurn = true;
+
+    console.log("Estado após your_turn:", {
+      isMyTurn,
+      playerSymbol,
+      currentRoom,
+    });
+
     playerInfoDisplay.textContent = `Você é ${playerSymbol} - Sua vez!`;
     gameStatusDisplay.textContent = "";
-
-    // Adiciona classe para indicar visualmente que é sua vez
     gameSection.classList.add("my-turn");
   });
 
   socket.on("wait_turn", (data) => {
-    console.log("Aguardando vez:", data);
+    console.log("Aguardando vez:", {
+      data,
+      previousTurn: isMyTurn,
+      symbol: data.symbol,
+      currentRoom,
+    });
+
     playerSymbol = data.symbol;
     isMyTurn = false;
+
+    console.log("Estado após wait_turn:", {
+      isMyTurn,
+      playerSymbol,
+      currentRoom,
+    });
+
     playerInfoDisplay.textContent = `Você é ${playerSymbol} - Aguarde sua vez...`;
     gameStatusDisplay.textContent = "";
-
-    // Remove classe quando não é sua vez
     gameSection.classList.remove("my-turn");
   });
 
   socket.on("board_update", (data) => {
-    console.log("Tabuleiro atualizado:", data);
+    console.log("Tabuleiro atualizado:", {
+      board: data.board,
+      isMyTurn,
+      playerSymbol,
+      currentRoom,
+    });
     updateBoard(data.board);
   });
 

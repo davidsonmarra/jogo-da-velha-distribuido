@@ -109,18 +109,24 @@ def on_make_move(data):
         
     game = games[room]['game']
     players = games[room]['players']
+    current_player = games[room]['current_player']
     
     # Verifica se é a vez do jogador
     player_idx = players.index(request.sid) if request.sid in players else -1
-    if player_idx != games[room]['current_player']:
-        logger.warning(f'Jogada fora de turno na sala {room}')
+    
+    logger.info(f'Jogada recebida: sala={room}, jogador={player_idx}, atual={current_player}, posição=({row}, {col})')
+    
+    if player_idx != current_player:
+        logger.warning(f'Jogada fora de turno na sala {room}. Jogador={player_idx}, Atual={current_player}')
         emit('error', {'message': 'Não é sua vez'})
         return
     
     # Tenta fazer a jogada
     if game.make_move(row, col):
         # Envia o novo estado do tabuleiro para todos
-        emit('board_update', {'board': game.board}, to=room)
+        board_state = game.board
+        emit('board_update', {'board': board_state}, to=room)
+        logger.info(f'Tabuleiro atualizado na sala {room}: {board_state}')
         
         # Verifica se há um vencedor
         winner = game.check_winner()
@@ -138,10 +144,13 @@ def on_make_move(data):
             return
             
         # Próximo jogador
-        games[room]['current_player'] = 1 - games[room]['current_player']
+        games[room]['current_player'] = 1 - current_player
         next_player = games[room]['players'][games[room]['current_player']]
-        emit('your_turn', room=next_player)
-        emit('wait_turn', room=players[1 - games[room]['current_player']])
+        other_player = games[room]['players'][1 - games[room]['current_player']]
+        
+        logger.info(f'Próximo turno na sala {room}: jogador {games[room]["current_player"]}')
+        emit('your_turn', {'symbol': 'O' if current_player == 0 else 'X'}, to=next_player)
+        emit('wait_turn', {'symbol': 'X' if current_player == 0 else 'O'}, to=other_player)
     else:
         logger.warning(f'Jogada inválida na sala {room}: ({row}, {col})')
         emit('error', {'message': 'Jogada inválida'})
