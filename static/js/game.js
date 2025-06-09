@@ -58,6 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const code = gameCodeInput.value.trim().toUpperCase();
     if (code) {
       if (socket.connected) {
+        currentRoom = code; // Armazena o código da sala ao tentar entrar
         socket.emit("join_game", { room: code });
         gameStatusDisplay.textContent = "Entrando no jogo...";
       } else {
@@ -89,6 +90,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Eventos do Socket.IO
   socket.on("game_created", (data) => {
+    console.log("Jogo criado:", data);
     currentRoom = data.room;
     showGame();
     roomCodeDisplay.textContent = `Código da sala: ${currentRoom}`;
@@ -97,11 +99,15 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   socket.on("game_start", (data) => {
+    console.log("Jogo iniciado:", data);
+    showGame();
     updateBoard(data.board);
-    gameStatusDisplay.textContent = "";
+    roomCodeDisplay.textContent = `Código da sala: ${currentRoom}`;
+    gameStatusDisplay.textContent = "O jogo começou!";
   });
 
   socket.on("your_turn", (data) => {
+    console.log("Sua vez:", data);
     playerSymbol = data.symbol;
     isMyTurn = true;
     playerInfoDisplay.textContent = `Você é ${playerSymbol} - Sua vez!`;
@@ -109,6 +115,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   socket.on("wait_turn", (data) => {
+    console.log("Aguardando vez:", data);
     playerSymbol = data.symbol;
     isMyTurn = false;
     playerInfoDisplay.textContent = `Você é ${playerSymbol} - Aguarde sua vez...`;
@@ -116,10 +123,12 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   socket.on("board_update", (data) => {
+    console.log("Tabuleiro atualizado:", data);
     updateBoard(data.board);
   });
 
   socket.on("game_over", (data) => {
+    console.log("Jogo finalizado:", data);
     isMyTurn = false;
     if (data.winner === "empate") {
       gameStatusDisplay.textContent = "Jogo empatado!";
@@ -135,18 +144,21 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   socket.on("player_disconnected", () => {
+    console.log("Jogador desconectado");
     gameStatusDisplay.textContent = "O outro jogador desconectou!";
     newGameBtn.classList.remove("hidden");
   });
 
   // Funções auxiliares
   function showGame() {
+    console.log("Mostrando tela do jogo");
     menu.classList.add("hidden");
     gameSection.classList.remove("hidden");
     newGameBtn.classList.add("hidden");
   }
 
   function updateBoard(boardData) {
+    console.log("Atualizando tabuleiro:", boardData);
     cells.forEach((cell, index) => {
       const row = Math.floor(index / 3);
       const col = index % 3;
@@ -161,6 +173,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function resetBoard() {
+    console.log("Resetando tabuleiro");
     cells.forEach((cell) => {
       cell.textContent = "";
       cell.className = "cell";
