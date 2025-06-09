@@ -1,5 +1,13 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const socket = io();
+  // Configuração do Socket.IO com opções de reconexão
+  const socket = io({
+    transports: ["websocket"],
+    upgrade: false,
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000,
+  });
+
   let currentRoom = null;
   let playerSymbol = null;
   let isMyTurn = false;
@@ -17,15 +25,41 @@ document.addEventListener("DOMContentLoaded", () => {
   const gameStatusDisplay = document.getElementById("gameStatus");
   const newGameBtn = document.getElementById("newGame");
 
+  // Monitoramento do estado da conexão
+  socket.on("connect", () => {
+    console.log("Conectado ao servidor");
+    gameStatusDisplay.textContent = "";
+  });
+
+  socket.on("disconnect", () => {
+    console.log("Desconectado do servidor");
+    gameStatusDisplay.textContent = "Conexão perdida. Tentando reconectar...";
+  });
+
+  socket.on("connect_error", (error) => {
+    console.log("Erro de conexão:", error);
+    gameStatusDisplay.textContent = "Erro de conexão. Tentando reconectar...";
+  });
+
   // Eventos dos botões
   createGameBtn.addEventListener("click", () => {
-    socket.emit("create_game");
+    if (socket.connected) {
+      socket.emit("create_game");
+      gameStatusDisplay.textContent = "Criando jogo...";
+    } else {
+      gameStatusDisplay.textContent = "Erro: Não conectado ao servidor";
+    }
   });
 
   joinGameBtn.addEventListener("click", () => {
     const code = gameCodeInput.value.trim().toUpperCase();
     if (code) {
-      socket.emit("join_game", { room: code });
+      if (socket.connected) {
+        socket.emit("join_game", { room: code });
+        gameStatusDisplay.textContent = "Entrando no jogo...";
+      } else {
+        gameStatusDisplay.textContent = "Erro: Não conectado ao servidor";
+      }
     }
   });
 
@@ -56,10 +90,12 @@ document.addEventListener("DOMContentLoaded", () => {
     showGame();
     roomCodeDisplay.textContent = `Código da sala: ${currentRoom}`;
     playerInfoDisplay.textContent = "Aguardando outro jogador...";
+    gameStatusDisplay.textContent = "";
   });
 
   socket.on("game_start", (data) => {
     updateBoard(data.board);
+    gameStatusDisplay.textContent = "";
   });
 
   socket.on("your_turn", (data) => {
@@ -73,6 +109,7 @@ document.addEventListener("DOMContentLoaded", () => {
     playerSymbol = data.symbol;
     isMyTurn = false;
     playerInfoDisplay.textContent = `Você é ${playerSymbol} - Aguarde sua vez...`;
+    gameStatusDisplay.textContent = "";
   });
 
   socket.on("board_update", (data) => {
@@ -90,7 +127,8 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   socket.on("error", (data) => {
-    alert(data.message);
+    console.error("Erro recebido:", data);
+    gameStatusDisplay.textContent = `Erro: ${data.message}`;
   });
 
   socket.on("player_disconnected", () => {
