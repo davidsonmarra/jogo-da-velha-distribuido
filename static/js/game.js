@@ -81,6 +81,7 @@ document.addEventListener("DOMContentLoaded", () => {
         playerSymbol,
         currentRoom,
         cellContent: cell.textContent,
+        isEmpty: cell.textContent.trim() === "",
         row: cell.dataset.row,
         col: cell.dataset.col,
       });
@@ -90,7 +91,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      if (cell.textContent !== "") {
+      if (cell.textContent.trim() !== "") {
         console.log("Célula já ocupada!");
         return;
       }
@@ -216,15 +217,23 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function updateBoard(boardData) {
-    console.log("Atualizando tabuleiro:", boardData);
+    console.log("Atualizando tabuleiro:", {
+      board: boardData,
+      isMyTurn,
+      playerSymbol,
+      currentRoom,
+    });
+
     cells.forEach((cell, index) => {
       const row = Math.floor(index / 3);
       const col = index % 3;
-      cell.textContent = boardData[row][col];
+      const value = boardData[row][col];
+      cell.textContent = value;
       cell.className = "cell";
-      if (boardData[row][col] === "X") {
+
+      if (value === "X") {
         cell.classList.add("x");
-      } else if (boardData[row][col] === "O") {
+      } else if (value === "O") {
         cell.classList.add("o");
       }
     });
@@ -242,5 +251,6 @@ document.addEventListener("DOMContentLoaded", () => {
     gameStatusDisplay.textContent = "";
     playerInfoDisplay.textContent = "";
     roomCodeDisplay.textContent = "";
+    gameSection.classList.remove("my-turn");
   }
 });
