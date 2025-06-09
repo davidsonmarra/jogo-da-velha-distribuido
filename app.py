@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request
 from flask_socketio import SocketIO, emit, join_room, leave_room
+from flask_cors import CORS
 from game import Game
 import json
 import os
@@ -10,13 +11,21 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*"}})
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'jogo-da-velha-secret!')
-socketio = SocketIO(app,
-                   cors_allowed_origins="*",
-                   async_mode='gevent',
-                   logger=True,
-                   engineio_logger=True,
-                   ping_timeout=60)
+app.config['CORS_HEADERS'] = 'Content-Type'
+
+socketio = SocketIO(
+    app,
+    cors_allowed_origins="*",
+    async_mode='gevent',
+    logger=True,
+    engineio_logger=True,
+    ping_timeout=60,
+    ping_interval=25,
+    always_connect=True,
+    manage_session=True
+)
 
 # Dicionário para armazenar os jogos ativos
 games = {}

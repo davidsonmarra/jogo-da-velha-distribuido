@@ -1,11 +1,14 @@
 document.addEventListener("DOMContentLoaded", () => {
-  // Configuração do Socket.IO com opções de reconexão
+  // Configuração do Socket.IO com opções de reconexão e CORS
   const socket = io({
-    transports: ["websocket"],
-    upgrade: false,
+    transports: ["websocket", "polling"],
+    upgrade: true,
     reconnection: true,
     reconnectionAttempts: 5,
     reconnectionDelay: 1000,
+    withCredentials: true,
+    path: "/socket.io/",
+    autoConnect: true,
   });
 
   let currentRoom = null;
