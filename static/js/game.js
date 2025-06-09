@@ -76,15 +76,40 @@ document.addEventListener("DOMContentLoaded", () => {
   // Eventos do tabuleiro
   cells.forEach((cell) => {
     cell.addEventListener("click", () => {
-      if (isMyTurn && cell.textContent === "") {
-        const row = parseInt(cell.dataset.row);
-        const col = parseInt(cell.dataset.col);
-        socket.emit("make_move", {
-          room: currentRoom,
-          row: row,
-          col: col,
-        });
+      console.log("Célula clicada:", {
+        isMyTurn,
+        isEmpty: cell.textContent === "",
+        content: cell.textContent,
+        row: cell.dataset.row,
+        col: cell.dataset.col,
+        currentRoom,
+        playerSymbol,
+      });
+
+      if (!isMyTurn) {
+        console.log("Não é sua vez!");
+        return;
       }
+
+      if (cell.textContent !== "") {
+        console.log("Célula já ocupada!");
+        return;
+      }
+
+      const row = parseInt(cell.dataset.row);
+      const col = parseInt(cell.dataset.col);
+
+      console.log("Enviando jogada:", {
+        room: currentRoom,
+        row,
+        col,
+      });
+
+      socket.emit("make_move", {
+        room: currentRoom,
+        row,
+        col,
+      });
     });
   });
 
@@ -112,6 +137,9 @@ document.addEventListener("DOMContentLoaded", () => {
     isMyTurn = true;
     playerInfoDisplay.textContent = `Você é ${playerSymbol} - Sua vez!`;
     gameStatusDisplay.textContent = "";
+
+    // Adiciona classe para indicar visualmente que é sua vez
+    gameSection.classList.add("my-turn");
   });
 
   socket.on("wait_turn", (data) => {
@@ -120,6 +148,9 @@ document.addEventListener("DOMContentLoaded", () => {
     isMyTurn = false;
     playerInfoDisplay.textContent = `Você é ${playerSymbol} - Aguarde sua vez...`;
     gameStatusDisplay.textContent = "";
+
+    // Remove classe quando não é sua vez
+    gameSection.classList.remove("my-turn");
   });
 
   socket.on("board_update", (data) => {

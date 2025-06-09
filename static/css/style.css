@@ -76,7 +76,7 @@ input {
   align-items: center;
   font-size: 2rem;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: all 0.3s ease;
 }
 
 .cell:hover {
@@ -115,4 +115,19 @@ input {
 #gameStatus {
   color: #dc3545;
   font-weight: bold;
+}
+
+.my-turn .cell:empty {
+  background-color: #e3f2fd;
+  border-color: #90caf9;
+  cursor: pointer;
+}
+
+.my-turn .cell:empty:hover {
+  background-color: #bbdefb;
+  transform: scale(1.05);
+}
+
+.cell:not(:empty) {
+  cursor: not-allowed;
 }
