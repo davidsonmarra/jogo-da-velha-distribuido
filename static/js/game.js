@@ -29,18 +29,48 @@ document.addEventListener("DOMContentLoaded", () => {
   // Configuração do Canvas
   function resizeCanvas() {
     const container = canvas.parentElement;
-    canvas.width = container.clientWidth;
-    canvas.height = container.clientHeight;
+    const rect = container.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+
+    // Restaura o contexto após redimensionar
+    ctx.strokeStyle = currentColor;
+    ctx.lineWidth = currentThickness;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
   }
 
   window.addEventListener("resize", resizeCanvas);
   resizeCanvas();
 
-  // Eventos de Desenho
+  // Eventos de mouse
   canvas.addEventListener("mousedown", startDrawing);
   canvas.addEventListener("mousemove", draw);
   canvas.addEventListener("mouseup", stopDrawing);
   canvas.addEventListener("mouseout", stopDrawing);
+
+  // Eventos de touch
+  canvas.addEventListener("touchstart", handleTouchStart);
+  canvas.addEventListener("touchmove", handleTouchMove);
+  canvas.addEventListener("touchend", stopDrawing);
+
+  function handleTouchStart(e) {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    startDrawing({ offsetX: x, offsetY: y });
+  }
+
+  function handleTouchMove(e) {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    draw({ offsetX: x, offsetY: y });
+  }
 
   function startDrawing(e) {
     isDrawing = true;
@@ -79,6 +109,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ctx.strokeStyle = currentColor;
     ctx.lineWidth = currentThickness;
     ctx.lineCap = "round";
+    ctx.lineJoin = "round";
     ctx.stroke();
   }
 
@@ -94,6 +125,11 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("clearCanvas").addEventListener("click", () => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     socket.emit("clear_canvas", { room: currentRoom });
+  });
+
+  // Evento para limpar canvas recebido do servidor
+  socket.on("clear_canvas", () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
   });
 
   // Eventos do Menu

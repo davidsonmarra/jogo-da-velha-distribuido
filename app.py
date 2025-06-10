@@ -116,6 +116,20 @@ def on_draw(data):
     except Exception as e:
         logger.error(f'Erro ao processar desenho: {str(e)}')
 
+@socketio.on('clear_canvas')
+def on_clear_canvas(data):
+    """Limpa o canvas para todos os jogadores na sala."""
+    try:
+        room = data['room']
+        game = games.get(room)
+        
+        if not game or request.sid != game.current_drawer:
+            return
+
+        emit('clear_canvas', room=room, skip_sid=request.sid)
+    except Exception as e:
+        logger.error(f'Erro ao limpar canvas: {str(e)}')
+
 @socketio.on('guess')
 def on_guess(data):
     """Processa tentativas de adivinhar a palavra."""
