@@ -75,7 +75,7 @@ def on_join_game(data):
         logger.error(f'Erro ao entrar no jogo: {str(e)}')
         emit('error', {'message': 'Erro ao entrar no jogo'})
 
-@socketio.on('game_started')
+@socketio.on('start_game')
 def on_start_game(data):
     """Inicia o jogo quando o host decide começar."""
     try:
@@ -88,6 +88,8 @@ def on_start_game(data):
 
         if game.start_game():
             game_state = game.get_game_state()
+            logger.info(f'Jogo iniciado na sala: {room} com estado: {game_state}')
+            
             # Envia o estado do jogo para todos
             emit('game_started', {
                 'game_state': game_state
@@ -95,11 +97,10 @@ def on_start_game(data):
             
             # Envia a palavra apenas para o desenhista
             if game.current_drawer and game.current_word:
+                logger.info(f'Enviando palavra "{game.current_word}" para o desenhista {game.current_drawer}')
                 emit('word_to_draw', {
                     'word': game.current_word
                 }, to=game.current_drawer)
-                
-            logger.info(f'Jogo iniciado na sala: {room}')
         else:
             emit('error', {'message': 'Não há jogadores suficientes'})
     except Exception as e:
