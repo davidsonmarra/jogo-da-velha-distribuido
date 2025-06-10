@@ -104,7 +104,10 @@ document.addEventListener("DOMContentLoaded", () => {
       y1: point.y,
     };
 
+    // Desenha localmente
     drawLine(points);
+
+    // Envia para o servidor
     socket.emit("draw", {
       room: currentRoom,
       points: points,
@@ -158,17 +161,23 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   thicknessPicker.addEventListener("input", (e) => {
-    currentThickness = e.target.value;
+    currentThickness = parseInt(e.target.value);
   });
 
   document.getElementById("clearCanvas").addEventListener("click", () => {
+    if (!canDraw) return; // Só permite limpar se for o desenhista atual
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     socket.emit("clear_canvas", { room: currentRoom });
   });
 
   // Evento para limpar canvas recebido do servidor
   socket.on("clear_canvas", () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    console.log("Limpando canvas");
+    if (!canDraw) {
+      // Só limpa se não for o desenhista atual
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
   });
 
   // Eventos do Menu
@@ -243,9 +252,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   socket.on("draw_data", (data) => {
     console.log("Recebendo dados de desenho", data);
-    currentColor = data.color;
-    currentThickness = data.thickness;
-    drawLine(data.points);
+    if (!canDraw) {
+      // Só desenha se não for o desenhista atual
+      const points = data.points;
+      ctx.beginPath();
+      ctx.moveTo(points.x0, points.y0);
+      ctx.lineTo(points.x1, points.y1);
+      ctx.strokeStyle = data.color;
+      ctx.lineWidth = data.thickness;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.stroke();
+    }
   });
 
   socket.on("correct_guess", (data) => {

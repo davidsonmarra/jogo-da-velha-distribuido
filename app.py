@@ -123,12 +123,14 @@ def on_draw(data):
             return
 
         logger.debug(f'Desenhando na sala {room}: {data}')
-        # Transmite o desenho para todos na sala exceto o desenhista
+        
+        # Transmite o desenho para todos na sala
         emit('draw_data', {
             'points': data['points'],
             'color': data['color'],
             'thickness': data['thickness']
-        }, room=room, skip_sid=request.sid)
+        }, broadcast=True, room=room)
+        
     except Exception as e:
         logger.error(f'Erro ao processar desenho: {str(e)}')
 
@@ -142,7 +144,9 @@ def on_clear_canvas(data):
         if not game or request.sid != game.current_drawer:
             return
 
-        emit('clear_canvas', room=room, skip_sid=request.sid)
+        # Transmite o comando de limpar para todos na sala
+        emit('clear_canvas', broadcast=True, room=room)
+        logger.info(f'Canvas limpo na sala: {room}')
     except Exception as e:
         logger.error(f'Erro ao limpar canvas: {str(e)}')
 
