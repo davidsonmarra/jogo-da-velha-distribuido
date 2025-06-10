@@ -11,6 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentRoom = null;
   let canDraw = false; // Nova variável para controlar permissão de desenho
   let currentGameState = null; // Variável para armazenar o estado atual do jogo
+  let isWaitingForWord = false; // Novo flag para controlar solicitações de palavra
 
   // Elementos do DOM
   const menu = document.getElementById("menu");
@@ -278,7 +279,15 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   function requestWord() {
+    if (isWaitingForWord) {
+      console.log(
+        "Já estamos aguardando uma palavra, ignorando nova solicitação"
+      );
+      return;
+    }
+
     console.log("Solicitando palavra do servidor...");
+    isWaitingForWord = true;
     socket.emit("request_word", { room: currentRoom });
 
     // Feedback visual imediato
@@ -311,6 +320,8 @@ document.addEventListener("DOMContentLoaded", () => {
       meu_id: playerId,
       sou_desenhista: currentGameState?.current_drawer === playerId,
     });
+
+    isWaitingForWord = false; // Reseta o flag quando recebe a palavra
 
     // Verifica se é realmente o desenhista atual usando o estado do jogo
     if (currentGameState?.current_drawer === playerId) {
@@ -348,13 +359,11 @@ document.addEventListener("DOMContentLoaded", () => {
     // Limpa o canvas para todos os jogadores
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Atualiza o estado do jogo
-    updateGameState(data.game_state);
-
     // Reseta os controles e estados
     drawingControls.classList.add("hidden");
     gameControls.classList.add("hidden");
     canDraw = false;
+    isWaitingForWord = false; // Reseta o flag em caso de acerto
 
     // Mostra mensagem de acerto
     if (data.player_id === playerId) {
@@ -365,9 +374,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     gameStatus.classList.remove("hidden");
 
-    // Esconde a mensagem após 3 segundos
+    // Atualiza o estado do jogo após a mensagem de acerto
     setTimeout(() => {
-      gameStatus.classList.add("hidden");
+      // Atualiza o estado do jogo
+      updateGameState(data.game_state);
 
       // Verifica se é o novo desenhista
       if (data.game_state.current_drawer === playerId) {
@@ -431,10 +441,15 @@ document.addEventListener("DOMContentLoaded", () => {
         currentDrawer: gameState.current_drawer,
         playerId: playerId,
         canDraw: gameState.current_drawer === playerId,
+        isWaitingForWord: isWaitingForWord,
       });
 
-      if (gameState.current_drawer === playerId && !canDraw) {
-        // Se for o novo desenhista mas ainda não recebeu a palavra
+      if (
+        gameState.current_drawer === playerId &&
+        !canDraw &&
+        !isWaitingForWord
+      ) {
+        // Se for o novo desenhista mas ainda não recebeu a palavra e não está aguardando
         console.log(
           "Sou o desenhista atual mas ainda não tenho a palavra, solicitando..."
         );
