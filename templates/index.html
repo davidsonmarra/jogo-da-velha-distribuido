@@ -45,64 +45,91 @@
       <!-- Seção do Jogo -->
       <div id="gameSection" class="hidden">
         <div class="row">
-          <div class="col-md-8">
-            <!-- Área de Desenho -->
-            <div class="canvas-container">
-              <canvas id="drawingCanvas"></canvas>
-              <div id="drawingControls" class="hidden">
-                <div class="color-picker">
-                  <input type="color" id="colorPicker" value="#000000" />
+          <!-- Área de espera -->
+          <div id="waitingRoom" class="col-12 mb-4">
+            <div class="card">
+              <div
+                class="card-header d-flex justify-content-between align-items-center"
+              >
+                <h3 class="mb-0" id="roomCode"></h3>
+                <button
+                  id="copyRoomCode"
+                  class="btn btn-outline-primary btn-sm"
+                >
+                  Copiar Código
+                </button>
+              </div>
+              <div class="card-body">
+                <h5 class="card-title">Jogadores na Sala:</h5>
+                <ul
+                  id="waitingPlayers"
+                  class="list-group list-group-flush mb-3"
+                ></ul>
+                <div id="hostControls" class="hidden">
+                  <button id="startGame" class="btn btn-primary">
+                    Iniciar Jogo
+                  </button>
                 </div>
-                <div class="thickness-control">
-                  <input
-                    type="range"
-                    id="thicknessPicker"
-                    min="1"
-                    max="20"
-                    value="5"
-                  />
-                </div>
-                <button id="clearCanvas" class="btn btn-warning">Limpar</button>
               </div>
             </div>
           </div>
-          <div class="col-md-4">
-            <!-- Informações do Jogo -->
-            <div class="game-info">
-              <h3 id="roomCode"></h3>
-              <div id="playerInfo" class="mb-3"></div>
-              <div id="teamInfo" class="mb-3">
-                <div class="team-a">
-                  <h4>Time A</h4>
-                  <ul id="teamAPlayers"></ul>
-                  <p>Pontos: <span id="teamAScore">0</span></p>
-                </div>
-                <div class="team-b">
-                  <h4>Time B</h4>
-                  <ul id="teamBPlayers"></ul>
-                  <p>Pontos: <span id="teamBScore">0</span></p>
+
+          <!-- Área do Jogo -->
+          <div id="gameArea" class="hidden">
+            <div class="col-md-8">
+              <!-- Área de Desenho -->
+              <div class="canvas-container">
+                <canvas id="drawingCanvas"></canvas>
+                <div id="drawingControls" class="hidden">
+                  <div class="color-picker">
+                    <input type="color" id="colorPicker" value="#000000" />
+                  </div>
+                  <div class="thickness-control">
+                    <input
+                      type="range"
+                      id="thicknessPicker"
+                      min="1"
+                      max="20"
+                      value="5"
+                    />
+                  </div>
+                  <button id="clearCanvas" class="btn btn-warning">
+                    Limpar
+                  </button>
                 </div>
               </div>
-              <div id="hostControls" class="hidden mb-3">
-                <button id="startGame" class="btn btn-primary">
-                  Iniciar Jogo
+            </div>
+            <div class="col-md-4">
+              <!-- Informações do Jogo -->
+              <div class="game-info">
+                <div id="teamInfo" class="mb-3">
+                  <div class="team-a">
+                    <h4>Time A</h4>
+                    <ul id="teamAPlayers"></ul>
+                    <p>Pontos: <span id="teamAScore">0</span></p>
+                  </div>
+                  <div class="team-b">
+                    <h4>Time B</h4>
+                    <ul id="teamBPlayers"></ul>
+                    <p>Pontos: <span id="teamBScore">0</span></p>
+                  </div>
+                </div>
+                <div id="gameControls" class="hidden">
+                  <input
+                    type="text"
+                    id="guessInput"
+                    class="form-control mb-2"
+                    placeholder="Digite seu palpite"
+                  />
+                  <button id="submitGuess" class="btn btn-success">
+                    Enviar Palpite
+                  </button>
+                </div>
+                <div id="gameStatus" class="alert alert-info hidden"></div>
+                <button id="newGame" class="btn btn-primary hidden">
+                  Novo Jogo
                 </button>
               </div>
-              <div id="gameControls" class="hidden">
-                <input
-                  type="text"
-                  id="guessInput"
-                  class="form-control mb-2"
-                  placeholder="Digite seu palpite"
-                />
-                <button id="submitGuess" class="btn btn-success">
-                  Enviar Palpite
-                </button>
-              </div>
-              <div id="gameStatus" class="alert alert-info hidden"></div>
-              <button id="newGame" class="btn btn-primary hidden">
-                Novo Jogo
-              </button>
             </div>
           </div>
         </div>

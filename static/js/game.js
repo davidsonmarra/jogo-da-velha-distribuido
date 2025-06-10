@@ -14,6 +14,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // Elementos do DOM
   const menu = document.getElementById("menu");
   const gameSection = document.getElementById("gameSection");
+  const waitingRoom = document.getElementById("waitingRoom");
+  const gameArea = document.getElementById("gameArea");
   const canvas = document.getElementById("drawingCanvas");
   const ctx = canvas.getContext("2d");
   const colorPicker = document.getElementById("colorPicker");
@@ -26,6 +28,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const teamBPlayers = document.getElementById("teamBPlayers");
   const teamAScore = document.getElementById("teamAScore");
   const teamBScore = document.getElementById("teamBScore");
+  const waitingPlayers = document.getElementById("waitingPlayers");
+  const copyRoomCode = document.getElementById("copyRoomCode");
 
   // Configuração do Canvas
   function resizeCanvas() {
@@ -243,6 +247,8 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("roomCode").textContent = `Sala: ${currentRoom}`;
     menu.classList.add("hidden");
     gameSection.classList.remove("hidden");
+    waitingRoom.classList.remove("hidden");
+    gameArea.classList.add("hidden");
     if (isHost) {
       hostControls.classList.remove("hidden");
     }
@@ -257,6 +263,8 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("roomCode").textContent = `Sala: ${currentRoom}`;
     menu.classList.add("hidden");
     gameSection.classList.remove("hidden");
+    waitingRoom.classList.remove("hidden");
+    gameArea.classList.add("hidden");
     if (isHost) {
       hostControls.classList.remove("hidden");
     }
@@ -265,13 +273,16 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   socket.on("player_joined", (data) => {
-    updateGameState(data.game_state);
+    updateWaitingRoom(data.game_state);
   });
 
   socket.on("game_started", (data) => {
     console.log("Jogo iniciado", data);
+    waitingRoom.classList.add("hidden");
+    gameArea.classList.remove("hidden");
     updateGameState(data.game_state);
     hostControls.classList.add("hidden");
+    initializeCanvas();
   });
 
   socket.on("word_to_draw", (data) => {
@@ -363,6 +374,33 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
   }
+
+  function updateWaitingRoom(gameState) {
+    waitingPlayers.innerHTML = "";
+    const players = Object.values(gameState.players);
+
+    players.forEach((player) => {
+      const playerElement = document.createElement("li");
+      playerElement.className = "list-group-item";
+      playerElement.textContent = player.name;
+      if (player.id === playerId) {
+        playerElement.className += " active";
+      }
+      waitingPlayers.appendChild(playerElement);
+    });
+  }
+
+  // Copiar código da sala
+  copyRoomCode.addEventListener("click", () => {
+    const roomCode = currentRoom;
+    navigator.clipboard.writeText(roomCode).then(() => {
+      const originalText = copyRoomCode.textContent;
+      copyRoomCode.textContent = "Copiado!";
+      setTimeout(() => {
+        copyRoomCode.textContent = originalText;
+      }, 2000);
+    });
+  });
 
   // Eventos de redimensionamento
   window.addEventListener("resize", () => {
