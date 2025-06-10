@@ -288,6 +288,9 @@ document.addEventListener("DOMContentLoaded", () => {
   socket.on("word_to_draw", (data) => {
     console.log("Recebendo palavra para desenhar");
     const word = data.word;
+    canDraw = true;
+    drawingControls.classList.remove("hidden");
+    gameControls.classList.add("hidden");
     gameStatus.textContent = `Sua vez de desenhar: "${word}"`;
     gameStatus.classList.remove("hidden");
   });
@@ -306,15 +309,37 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   socket.on("correct_guess", (data) => {
+    // Limpa o canvas para todos os jogadores
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Atualiza o estado do jogo
     updateGameState(data.game_state);
+
+    // Reseta os controles de desenho
+    drawingControls.classList.add("hidden");
+    gameControls.classList.add("hidden");
+
+    // Mostra mensagem de acerto
     if (data.player_id === playerId) {
       gameStatus.textContent = "Parabéns! Você acertou!";
     } else {
-      gameStatus.textContent = "Alguém acertou a palavra!";
+      const guesserName = data.game_state.players[data.player_id].name;
+      gameStatus.textContent = `${guesserName} acertou a palavra!`;
     }
     gameStatus.classList.remove("hidden");
+
+    // Esconde a mensagem após 3 segundos
     setTimeout(() => {
       gameStatus.classList.add("hidden");
+
+      // Verifica se é o novo desenhista
+      if (data.game_state.current_drawer === playerId) {
+        drawingControls.classList.remove("hidden");
+        gameControls.classList.add("hidden");
+      } else {
+        drawingControls.classList.add("hidden");
+        gameControls.classList.remove("hidden");
+      }
     }, 3000);
   });
 
@@ -329,6 +354,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Funções de Atualização da Interface
   function updateGameState(gameState) {
     console.log("Atualizando estado do jogo", gameState);
+
     // Atualiza os times
     teamAPlayers.innerHTML = "";
     teamBPlayers.innerHTML = "";
@@ -361,10 +387,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (canDraw) {
         console.log("Você é o desenhista!");
-        drawingControls.classList.remove("hidden");
+        // Não mostramos os controles aqui, pois eles serão mostrados quando a palavra for recebida
         gameControls.classList.add("hidden");
-        gameStatus.textContent = "Sua vez de desenhar!";
-        gameStatus.classList.remove("hidden");
       } else {
         console.log("Você deve adivinhar!");
         drawingControls.classList.add("hidden");
