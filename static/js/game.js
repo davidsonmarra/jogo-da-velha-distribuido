@@ -9,6 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let isHost = false;
   let playerId = null;
   let currentRoom = null;
+  let canDraw = false; // Nova variável para controlar permissão de desenho
 
   // Elementos do DOM
   const menu = document.getElementById("menu");
@@ -50,12 +51,14 @@ document.addEventListener("DOMContentLoaded", () => {
   canvas.addEventListener("mouseout", stopDrawing);
 
   // Eventos de touch
-  canvas.addEventListener("touchstart", handleTouchStart);
-  canvas.addEventListener("touchmove", handleTouchMove);
+  canvas.addEventListener("touchstart", handleTouchStart, { passive: false });
+  canvas.addEventListener("touchmove", handleTouchMove, { passive: false });
   canvas.addEventListener("touchend", stopDrawing);
 
   function handleTouchStart(e) {
     e.preventDefault();
+    if (!canDraw) return;
+
     const touch = e.touches[0];
     const rect = canvas.getBoundingClientRect();
     const x = touch.clientX - rect.left;
@@ -65,6 +68,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function handleTouchMove(e) {
     e.preventDefault();
+    if (!canDraw) return;
+
     const touch = e.touches[0];
     const rect = canvas.getBoundingClientRect();
     const x = touch.clientX - rect.left;
@@ -73,13 +78,19 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function startDrawing(e) {
+    if (!canDraw) {
+      console.log("Não tem permissão para desenhar");
+      return;
+    }
+    console.log("Iniciando desenho");
     isDrawing = true;
     [lastX, lastY] = [e.offsetX, e.offsetY];
   }
 
   function draw(e) {
-    if (!isDrawing) return;
+    if (!isDrawing || !canDraw) return;
 
+    console.log("Desenhando", e.offsetX, e.offsetY);
     const points = {
       x0: lastX,
       y0: lastY,
@@ -190,11 +201,20 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   socket.on("game_started", (data) => {
+    console.log("Jogo iniciado", data);
     updateGameState(data.game_state);
     hostControls.classList.add("hidden");
   });
 
+  socket.on("word_to_draw", (data) => {
+    console.log("Recebendo palavra para desenhar");
+    const word = data.word;
+    gameStatus.textContent = `Sua vez de desenhar: "${word}"`;
+    gameStatus.classList.remove("hidden");
+  });
+
   socket.on("draw_data", (data) => {
+    console.log("Recebendo dados de desenho", data);
     currentColor = data.color;
     currentThickness = data.thickness;
     drawLine(data.points);
@@ -223,12 +243,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Funções de Atualização da Interface
   function updateGameState(gameState) {
+    console.log("Atualizando estado do jogo", gameState);
     // Atualiza os times
     teamAPlayers.innerHTML = "";
     teamBPlayers.innerHTML = "";
 
-    for (const playerId in gameState.players) {
-      const player = gameState.players[playerId];
+    for (const pid in gameState.players) {
+      const player = gameState.players[pid];
       const playerElement = document.createElement("li");
       playerElement.textContent = `${player.name} (${player.score} pontos)`;
 
@@ -245,12 +266,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Atualiza controles de desenho e palpites
     if (gameState.game_started) {
-      if (gameState.current_drawer === playerId) {
+      console.log("Verificando permissão de desenho", {
+        currentDrawer: gameState.current_drawer,
+        playerId: playerId,
+        canDraw: gameState.current_drawer === playerId,
+      });
+
+      canDraw = gameState.current_drawer === playerId;
+
+      if (canDraw) {
+        console.log("Você é o desenhista!");
         drawingControls.classList.remove("hidden");
         gameControls.classList.add("hidden");
         gameStatus.textContent = "Sua vez de desenhar!";
         gameStatus.classList.remove("hidden");
       } else {
+        console.log("Você deve adivinhar!");
         drawingControls.classList.add("hidden");
         gameControls.classList.remove("hidden");
         gameStatus.textContent = "Adivinhe o desenho!";

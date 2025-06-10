@@ -75,7 +75,7 @@ def on_join_game(data):
         logger.error(f'Erro ao entrar no jogo: {str(e)}')
         emit('error', {'message': 'Erro ao entrar no jogo'})
 
-@socketio.on('start_game')
+@socketio.on('game_started')
 def on_start_game(data):
     """Inicia o jogo quando o host decide começar."""
     try:
@@ -87,9 +87,18 @@ def on_start_game(data):
             return
 
         if game.start_game():
+            game_state = game.get_game_state()
+            # Envia o estado do jogo para todos
             emit('game_started', {
-                'game_state': game.get_game_state()
+                'game_state': game_state
             }, room=room)
+            
+            # Envia a palavra apenas para o desenhista
+            if game.current_drawer and game.current_word:
+                emit('word_to_draw', {
+                    'word': game.current_word
+                }, to=game.current_drawer)
+                
             logger.info(f'Jogo iniciado na sala: {room}')
         else:
             emit('error', {'message': 'Não há jogadores suficientes'})
@@ -104,9 +113,15 @@ def on_draw(data):
         room = data['room']
         game = games.get(room)
         
-        if not game or request.sid != game.current_drawer:
+        if not game:
+            logger.warning(f'Tentativa de desenho em sala inexistente: {room}')
+            return
+            
+        if request.sid != game.current_drawer:
+            logger.warning(f'Tentativa de desenho por jogador não autorizado: {request.sid}')
             return
 
+        logger.debug(f'Desenhando na sala {room}: {data}')
         # Transmite o desenho para todos na sala exceto o desenhista
         emit('draw_data', {
             'points': data['points'],
