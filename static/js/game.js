@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let playerId = null;
   let currentRoom = null;
   let canDraw = false; // Nova variável para controlar permissão de desenho
+  let currentGameState = null; // Variável para armazenar o estado atual do jogo
 
   // Elementos do DOM
   const menu = document.getElementById("menu");
@@ -306,13 +307,13 @@ document.addEventListener("DOMContentLoaded", () => {
   socket.on("word_to_draw", (data) => {
     console.log("Recebendo palavra para desenhar", {
       word: data.word,
-      drawer_id: data.drawer_id,
+      current_drawer: currentGameState?.current_drawer,
       meu_id: playerId,
-      sou_desenhista: data.drawer_id === playerId,
+      sou_desenhista: currentGameState?.current_drawer === playerId,
     });
 
-    // Verifica se é realmente o desenhista atual
-    if (data.drawer_id === playerId) {
+    // Verifica se é realmente o desenhista atual usando o estado do jogo
+    if (currentGameState?.current_drawer === playerId) {
       console.log("Sou o desenhista atual, habilitando controles de desenho");
       canDraw = true;
       drawingControls.classList.remove("hidden");
@@ -394,6 +395,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Funções de Atualização da Interface
   function updateGameState(gameState) {
     console.log("Atualizando estado do jogo", gameState);
+
+    // Atualiza o estado atual do jogo
+    currentGameState = gameState;
 
     // Atualiza os times
     teamAPlayers.innerHTML = "";
