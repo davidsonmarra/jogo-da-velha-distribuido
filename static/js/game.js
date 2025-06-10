@@ -31,6 +31,8 @@ document.addEventListener("DOMContentLoaded", () => {
   function resizeCanvas() {
     const container = canvas.parentElement;
     const rect = container.getBoundingClientRect();
+
+    // Define as dimensões do canvas
     canvas.width = rect.width;
     canvas.height = rect.height;
 
@@ -41,40 +43,34 @@ document.addEventListener("DOMContentLoaded", () => {
     ctx.lineJoin = "round";
   }
 
+  // Inicializa o canvas quando a página carrega
+  window.addEventListener("load", () => {
+    resizeCanvas();
+    // Força um reflow do canvas
+    canvas.style.display = "none";
+    canvas.offsetHeight; // força um reflow
+    canvas.style.display = "block";
+  });
+
   window.addEventListener("resize", resizeCanvas);
-  resizeCanvas();
 
-  // Eventos de mouse
-  canvas.addEventListener("mousedown", startDrawing);
-  canvas.addEventListener("mousemove", draw);
-  canvas.addEventListener("mouseup", stopDrawing);
-  canvas.addEventListener("mouseout", stopDrawing);
-
-  // Eventos de touch
-  canvas.addEventListener("touchstart", handleTouchStart, { passive: false });
-  canvas.addEventListener("touchmove", handleTouchMove, { passive: false });
-  canvas.addEventListener("touchend", stopDrawing);
-
-  function handleTouchStart(e) {
-    e.preventDefault();
-    if (!canDraw) return;
-
-    const touch = e.touches[0];
+  // Funções de desenho
+  function getCanvasPoint(e) {
     const rect = canvas.getBoundingClientRect();
-    const x = touch.clientX - rect.left;
-    const y = touch.clientY - rect.top;
-    startDrawing({ offsetX: x, offsetY: y });
-  }
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
 
-  function handleTouchMove(e) {
-    e.preventDefault();
-    if (!canDraw) return;
+    if (e.touches) {
+      return {
+        x: (e.touches[0].clientX - rect.left) * scaleX,
+        y: (e.touches[0].clientY - rect.top) * scaleY,
+      };
+    }
 
-    const touch = e.touches[0];
-    const rect = canvas.getBoundingClientRect();
-    const x = touch.clientX - rect.left;
-    const y = touch.clientY - rect.top;
-    draw({ offsetX: x, offsetY: y });
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY,
+    };
   }
 
   function startDrawing(e) {
@@ -82,20 +78,30 @@ document.addEventListener("DOMContentLoaded", () => {
       console.log("Não tem permissão para desenhar");
       return;
     }
-    console.log("Iniciando desenho");
+
+    e.preventDefault();
     isDrawing = true;
-    [lastX, lastY] = [e.offsetX, e.offsetY];
+
+    const point = getCanvasPoint(e);
+    lastX = point.x;
+    lastY = point.y;
+
+    console.log("Iniciando desenho em:", point);
   }
 
   function draw(e) {
     if (!isDrawing || !canDraw) return;
 
-    console.log("Desenhando", e.offsetX, e.offsetY);
+    e.preventDefault();
+    const point = getCanvasPoint(e);
+
+    console.log("Desenhando de", { x: lastX, y: lastY }, "para", point);
+
     const points = {
       x0: lastX,
       y0: lastY,
-      x1: e.offsetX,
-      y1: e.offsetY,
+      x1: point.x,
+      y1: point.y,
     };
 
     drawLine(points);
@@ -106,10 +112,12 @@ document.addEventListener("DOMContentLoaded", () => {
       thickness: currentThickness,
     });
 
-    [lastX, lastY] = [e.offsetX, e.offsetY];
+    lastX = point.x;
+    lastY = point.y;
   }
 
-  function stopDrawing() {
+  function stopDrawing(e) {
+    if (e) e.preventDefault();
     isDrawing = false;
   }
 
@@ -123,6 +131,26 @@ document.addEventListener("DOMContentLoaded", () => {
     ctx.lineJoin = "round";
     ctx.stroke();
   }
+
+  // Eventos de mouse e touch
+  canvas.addEventListener("mousedown", startDrawing);
+  canvas.addEventListener("mousemove", draw);
+  canvas.addEventListener("mouseup", stopDrawing);
+  canvas.addEventListener("mouseout", stopDrawing);
+
+  canvas.addEventListener("touchstart", startDrawing, { passive: false });
+  canvas.addEventListener("touchmove", draw, { passive: false });
+  canvas.addEventListener("touchend", stopDrawing, { passive: false });
+  canvas.addEventListener("touchcancel", stopDrawing, { passive: false });
+
+  // Previne o scroll da página enquanto desenha
+  canvas.addEventListener(
+    "touchmove",
+    (e) => {
+      if (isDrawing) e.preventDefault();
+    },
+    { passive: false }
+  );
 
   // Eventos dos Controles de Desenho
   colorPicker.addEventListener("change", (e) => {
