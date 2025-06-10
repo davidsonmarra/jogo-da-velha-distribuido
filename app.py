@@ -170,6 +170,33 @@ def on_guess(data):
     except Exception as e:
         logger.error(f'Erro ao processar palpite: {str(e)}')
 
+@socketio.on('request_word')
+def on_request_word(data):
+    """Envia a palavra atual para o desenhista que solicitou."""
+    try:
+        room = data['room']
+        game = games.get(room)
+        
+        if not game:
+            logger.warning(f'Tentativa de solicitar palavra em sala inexistente: {room}')
+            return
+            
+        if request.sid != game.current_drawer:
+            logger.warning(f'Tentativa de solicitar palavra por jogador não autorizado: {request.sid}')
+            return
+
+        if game.current_word:
+            logger.info(f'Enviando palavra "{game.current_word}" para o desenhista {game.current_drawer}')
+            emit('word_to_draw', {
+                'word': game.current_word,
+                'drawer_id': game.current_drawer
+            })
+        else:
+            logger.warning(f'Não há palavra definida para a sala: {room}')
+            
+    except Exception as e:
+        logger.error(f'Erro ao enviar palavra: {str(e)}')
+
 @socketio.on('disconnect')
 def on_disconnect():
     """Gerencia a desconexão de jogadores."""
