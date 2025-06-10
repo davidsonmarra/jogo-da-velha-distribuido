@@ -304,19 +304,28 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   socket.on("word_to_draw", (data) => {
-    console.log("Recebendo palavra para desenhar", data);
-    const word = data.word;
+    console.log("Recebendo palavra para desenhar", {
+      word: data.word,
+      drawer_id: data.drawer_id,
+      meu_id: playerId,
+      sou_desenhista: data.drawer_id === playerId,
+    });
 
     // Verifica se é realmente o desenhista atual
-    if (playerId === data.drawer_id) {
-      console.log("Palavra recebida, habilitando controles de desenho");
+    if (data.drawer_id === playerId) {
+      console.log("Sou o desenhista atual, habilitando controles de desenho");
       canDraw = true;
       drawingControls.classList.remove("hidden");
       gameControls.classList.add("hidden");
-      gameStatus.textContent = `Sua vez de desenhar: "${word}"`;
+      gameStatus.textContent = `Sua vez de desenhar: "${data.word}"`;
       gameStatus.classList.remove("hidden");
     } else {
-      console.log("Recebi palavra mas não sou o desenhista atual");
+      console.log("Não sou o desenhista atual");
+      canDraw = false;
+      drawingControls.classList.add("hidden");
+      gameControls.classList.remove("hidden");
+      gameStatus.textContent = "Adivinhe o desenho!";
+      gameStatus.classList.remove("hidden");
     }
   });
 
