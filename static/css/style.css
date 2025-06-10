@@ -37,6 +37,8 @@ body {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   margin-bottom: 20px;
   width: 100%;
+  min-width: 300px;
+  min-height: 300px;
   height: 0;
   padding-bottom: 60%; /* Proporção de aspecto 5:3 */
   overflow: hidden;
@@ -46,13 +48,14 @@ body {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  width: 100% !important;
+  height: 100% !important;
   border-radius: 10px;
   cursor: crosshair;
   touch-action: none;
   background-color: white;
   border: 1px solid #ddd;
+  display: block !important;
 }
 
 #drawingControls {
@@ -129,4 +132,15 @@ li {
   .col-md-4 {
     margin-top: 20px;
   }
+}
+
+/* Garante que a seção do jogo seja renderizada corretamente */
+#gameSection {
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+#gameSection.hidden {
+  opacity: 0;
+  pointer-events: none;
 }

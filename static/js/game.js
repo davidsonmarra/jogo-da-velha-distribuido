@@ -33,26 +33,54 @@ document.addEventListener("DOMContentLoaded", () => {
     const rect = container.getBoundingClientRect();
 
     // Define as dimensões do canvas
-    canvas.width = rect.width;
-    canvas.height = rect.height;
+    canvas.width = rect.width || 800; // fallback para 800px
+    canvas.height = rect.height || 600; // fallback para 600px
 
     // Restaura o contexto após redimensionar
     ctx.strokeStyle = currentColor;
     ctx.lineWidth = currentThickness;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
+
+    console.log("Canvas redimensionado:", {
+      width: canvas.width,
+      height: canvas.height,
+    });
   }
 
-  // Inicializa o canvas quando a página carrega
-  window.addEventListener("load", () => {
-    resizeCanvas();
-    // Força um reflow do canvas
-    canvas.style.display = "none";
-    canvas.offsetHeight; // força um reflow
+  // Função para inicializar o canvas
+  function initializeCanvas() {
+    console.log("Inicializando canvas...");
+
+    // Força o canvas a ser visível
     canvas.style.display = "block";
+
+    // Tenta redimensionar algumas vezes para garantir
+    resizeCanvas();
+
+    // Agenda algumas tentativas adicionais
+    setTimeout(resizeCanvas, 100);
+    setTimeout(resizeCanvas, 500);
+    setTimeout(resizeCanvas, 1000);
+  }
+
+  // Observer para monitorar mudanças na visibilidade do gameSection
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.target.classList.contains("hidden")) {
+        console.log("Game section hidden");
+      } else {
+        console.log("Game section visible, inicializando canvas...");
+        initializeCanvas();
+      }
+    });
   });
 
-  window.addEventListener("resize", resizeCanvas);
+  // Observa mudanças na classe do gameSection
+  observer.observe(gameSection, {
+    attributes: true,
+    attributeFilter: ["class"],
+  });
 
   // Funções de desenho
   function getCanvasPoint(e) {
@@ -218,6 +246,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (isHost) {
       hostControls.classList.remove("hidden");
     }
+    // Inicializa o canvas quando o jogo é criado
+    initializeCanvas();
   });
 
   socket.on("game_joined", (data) => {
@@ -230,6 +260,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (isHost) {
       hostControls.classList.remove("hidden");
     }
+    // Inicializa o canvas quando entra no jogo
+    initializeCanvas();
   });
 
   socket.on("player_joined", (data) => {
@@ -330,5 +362,17 @@ document.addEventListener("DOMContentLoaded", () => {
         gameStatus.classList.remove("hidden");
       }
     }
+  }
+
+  // Eventos de redimensionamento
+  window.addEventListener("resize", () => {
+    console.log("Janela redimensionada");
+    resizeCanvas();
+  });
+
+  // Inicialização inicial
+  console.log("DOM carregado");
+  if (!gameSection.classList.contains("hidden")) {
+    initializeCanvas();
   }
 });
