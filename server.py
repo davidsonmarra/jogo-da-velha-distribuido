@@ -3,7 +3,7 @@ import threading
 from game import Game
 
 class TicTacToeServer:
-    def __init__(self, host='localhost', port=5000):
+    def __init__(self, host='localhost', port=5001):
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.bind((host, port))
         self.server.listen(2)

@@ -1,256 +1,225 @@
 document.addEventListener("DOMContentLoaded", () => {
-  // Configuração do Socket.IO com opções de reconexão e CORS
-  const socket = io({
-    transports: ["websocket", "polling"],
-    upgrade: true,
-    reconnection: true,
-    reconnectionAttempts: 5,
-    reconnectionDelay: 1000,
-    withCredentials: true,
-    path: "/socket.io/",
-    autoConnect: true,
-  });
-
+  // Configuração do Socket.IO
+  const socket = io();
+  let isDrawing = false;
+  let lastX = 0;
+  let lastY = 0;
+  let currentColor = "#000000";
+  let currentThickness = 5;
+  let isHost = false;
+  let playerId = null;
   let currentRoom = null;
-  let playerSymbol = null;
-  let isMyTurn = false;
 
   // Elementos do DOM
   const menu = document.getElementById("menu");
   const gameSection = document.getElementById("gameSection");
-  const board = document.getElementById("board");
-  const cells = document.querySelectorAll(".cell");
-  const createGameBtn = document.getElementById("createGame");
-  const joinGameBtn = document.getElementById("joinGame");
-  const gameCodeInput = document.getElementById("gameCode");
-  const roomCodeDisplay = document.getElementById("roomCode");
-  const playerInfoDisplay = document.getElementById("playerInfo");
-  const gameStatusDisplay = document.getElementById("gameStatus");
-  const newGameBtn = document.getElementById("newGame");
+  const canvas = document.getElementById("drawingCanvas");
+  const ctx = canvas.getContext("2d");
+  const colorPicker = document.getElementById("colorPicker");
+  const thicknessPicker = document.getElementById("thicknessPicker");
+  const drawingControls = document.getElementById("drawingControls");
+  const hostControls = document.getElementById("hostControls");
+  const gameControls = document.getElementById("gameControls");
+  const gameStatus = document.getElementById("gameStatus");
+  const teamAPlayers = document.getElementById("teamAPlayers");
+  const teamBPlayers = document.getElementById("teamBPlayers");
+  const teamAScore = document.getElementById("teamAScore");
+  const teamBScore = document.getElementById("teamBScore");
 
-  // Monitoramento do estado da conexão
-  socket.on("connect", () => {
-    console.log("Conectado ao servidor");
-    gameStatusDisplay.textContent = "";
+  // Configuração do Canvas
+  function resizeCanvas() {
+    const container = canvas.parentElement;
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
+  }
+
+  window.addEventListener("resize", resizeCanvas);
+  resizeCanvas();
+
+  // Eventos de Desenho
+  canvas.addEventListener("mousedown", startDrawing);
+  canvas.addEventListener("mousemove", draw);
+  canvas.addEventListener("mouseup", stopDrawing);
+  canvas.addEventListener("mouseout", stopDrawing);
+
+  function startDrawing(e) {
+    isDrawing = true;
+    [lastX, lastY] = [e.offsetX, e.offsetY];
+  }
+
+  function draw(e) {
+    if (!isDrawing) return;
+
+    const points = {
+      x0: lastX,
+      y0: lastY,
+      x1: e.offsetX,
+      y1: e.offsetY,
+    };
+
+    drawLine(points);
+    socket.emit("draw", {
+      room: currentRoom,
+      points: points,
+      color: currentColor,
+      thickness: currentThickness,
+    });
+
+    [lastX, lastY] = [e.offsetX, e.offsetY];
+  }
+
+  function stopDrawing() {
+    isDrawing = false;
+  }
+
+  function drawLine(points) {
+    ctx.beginPath();
+    ctx.moveTo(points.x0, points.y0);
+    ctx.lineTo(points.x1, points.y1);
+    ctx.strokeStyle = currentColor;
+    ctx.lineWidth = currentThickness;
+    ctx.lineCap = "round";
+    ctx.stroke();
+  }
+
+  // Eventos dos Controles de Desenho
+  colorPicker.addEventListener("change", (e) => {
+    currentColor = e.target.value;
   });
 
-  socket.on("disconnect", () => {
-    console.log("Desconectado do servidor");
-    gameStatusDisplay.textContent = "Conexão perdida. Tentando reconectar...";
+  thicknessPicker.addEventListener("input", (e) => {
+    currentThickness = e.target.value;
   });
 
-  socket.on("connect_error", (error) => {
-    console.log("Erro de conexão:", error);
-    gameStatusDisplay.textContent = "Erro de conexão. Tentando reconectar...";
+  document.getElementById("clearCanvas").addEventListener("click", () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    socket.emit("clear_canvas", { room: currentRoom });
   });
 
-  // Eventos dos botões
-  createGameBtn.addEventListener("click", () => {
-    if (socket.connected) {
-      socket.emit("create_game");
-      gameStatusDisplay.textContent = "Criando jogo...";
-    } else {
-      gameStatusDisplay.textContent = "Erro: Não conectado ao servidor";
-    }
+  // Eventos do Menu
+  document.getElementById("createGame").addEventListener("click", () => {
+    const playerName =
+      document.getElementById("playerName").value.trim() || "Jogador";
+    socket.emit("create_game", { player_name: playerName });
   });
 
-  joinGameBtn.addEventListener("click", () => {
-    const code = gameCodeInput.value.trim().toUpperCase();
+  document.getElementById("joinGame").addEventListener("click", () => {
+    const code = document.getElementById("gameCode").value.trim().toUpperCase();
+    const playerName =
+      document.getElementById("playerName").value.trim() || "Jogador";
     if (code) {
-      if (socket.connected) {
-        currentRoom = code; // Armazena o código da sala ao tentar entrar
-        socket.emit("join_game", { room: code });
-        gameStatusDisplay.textContent = "Entrando no jogo...";
-      } else {
-        gameStatusDisplay.textContent = "Erro: Não conectado ao servidor";
-      }
+      socket.emit("join_game", { room: code, player_name: playerName });
     }
   });
 
-  newGameBtn.addEventListener("click", () => {
-    menu.classList.remove("hidden");
-    gameSection.classList.add("hidden");
-    resetBoard();
+  document.getElementById("startGame").addEventListener("click", () => {
+    socket.emit("start_game", { room: currentRoom });
   });
 
-  // Eventos do tabuleiro
-  cells.forEach((cell) => {
-    cell.addEventListener("click", () => {
-      console.log("Tentativa de jogada:", {
-        isMyTurn,
-        playerSymbol,
-        currentRoom,
-        cellContent: cell.textContent,
-        isEmpty: cell.textContent.trim() === "",
-        row: cell.dataset.row,
-        col: cell.dataset.col,
-      });
-
-      if (!isMyTurn) {
-        console.log("Não é sua vez!");
-        return;
-      }
-
-      if (cell.textContent.trim() !== "") {
-        console.log("Célula já ocupada!");
-        return;
-      }
-
-      const row = parseInt(cell.dataset.row);
-      const col = parseInt(cell.dataset.col);
-
-      console.log("Enviando jogada:", {
-        room: currentRoom,
-        row,
-        col,
-        playerSymbol,
-      });
-
-      socket.emit("make_move", {
-        room: currentRoom,
-        row,
-        col,
-      });
-    });
+  document.getElementById("submitGuess").addEventListener("click", () => {
+    const guess = document.getElementById("guessInput").value.trim();
+    if (guess) {
+      socket.emit("guess", { room: currentRoom, guess: guess });
+      document.getElementById("guessInput").value = "";
+    }
   });
 
-  // Eventos do Socket.IO
+  // Eventos do Socket
   socket.on("game_created", (data) => {
-    console.log("Jogo criado:", data);
     currentRoom = data.room;
-    showGame();
-    roomCodeDisplay.textContent = `Código da sala: ${currentRoom}`;
-    playerInfoDisplay.textContent = "Aguardando outro jogador...";
-    gameStatusDisplay.textContent = "";
-  });
-
-  socket.on("game_start", (data) => {
-    console.log("Jogo iniciado:", data);
-    showGame();
-    updateBoard(data.board);
-    roomCodeDisplay.textContent = `Código da sala: ${currentRoom}`;
-    gameStatusDisplay.textContent = "O jogo começou!";
-  });
-
-  socket.on("your_turn", (data) => {
-    console.log("Sua vez:", {
-      data,
-      previousTurn: isMyTurn,
-      symbol: data.symbol,
-      currentRoom,
-    });
-
-    playerSymbol = data.symbol;
-    isMyTurn = true;
-
-    console.log("Estado após your_turn:", {
-      isMyTurn,
-      playerSymbol,
-      currentRoom,
-    });
-
-    playerInfoDisplay.textContent = `Você é ${playerSymbol} - Sua vez!`;
-    gameStatusDisplay.textContent = "";
-    gameSection.classList.add("my-turn");
-  });
-
-  socket.on("wait_turn", (data) => {
-    console.log("Aguardando vez:", {
-      data,
-      previousTurn: isMyTurn,
-      symbol: data.symbol,
-      currentRoom,
-    });
-
-    playerSymbol = data.symbol;
-    isMyTurn = false;
-
-    console.log("Estado após wait_turn:", {
-      isMyTurn,
-      playerSymbol,
-      currentRoom,
-    });
-
-    playerInfoDisplay.textContent = `Você é ${playerSymbol} - Aguarde sua vez...`;
-    gameStatusDisplay.textContent = "";
-    gameSection.classList.remove("my-turn");
-  });
-
-  socket.on("board_update", (data) => {
-    console.log("Tabuleiro atualizado:", {
-      board: data.board,
-      isMyTurn,
-      playerSymbol,
-      currentRoom,
-    });
-    updateBoard(data.board);
-  });
-
-  socket.on("game_over", (data) => {
-    console.log("Jogo finalizado:", data);
-    isMyTurn = false;
-    if (data.winner === "empate") {
-      gameStatusDisplay.textContent = "Jogo empatado!";
-    } else {
-      gameStatusDisplay.textContent = `Jogador ${data.winner} venceu!`;
+    isHost = data.is_host;
+    playerId = data.player_id;
+    document.getElementById("roomCode").textContent = `Sala: ${currentRoom}`;
+    menu.classList.add("hidden");
+    gameSection.classList.remove("hidden");
+    if (isHost) {
+      hostControls.classList.remove("hidden");
     }
-    newGameBtn.classList.remove("hidden");
+  });
+
+  socket.on("game_joined", (data) => {
+    currentRoom = data.room;
+    isHost = data.is_host;
+    playerId = data.player_id;
+    document.getElementById("roomCode").textContent = `Sala: ${currentRoom}`;
+    menu.classList.add("hidden");
+    gameSection.classList.remove("hidden");
+    if (isHost) {
+      hostControls.classList.remove("hidden");
+    }
+  });
+
+  socket.on("player_joined", (data) => {
+    updateGameState(data.game_state);
+  });
+
+  socket.on("game_started", (data) => {
+    updateGameState(data.game_state);
+    hostControls.classList.add("hidden");
+  });
+
+  socket.on("draw_data", (data) => {
+    currentColor = data.color;
+    currentThickness = data.thickness;
+    drawLine(data.points);
+  });
+
+  socket.on("correct_guess", (data) => {
+    updateGameState(data.game_state);
+    if (data.player_id === playerId) {
+      gameStatus.textContent = "Parabéns! Você acertou!";
+    } else {
+      gameStatus.textContent = "Alguém acertou a palavra!";
+    }
+    gameStatus.classList.remove("hidden");
+    setTimeout(() => {
+      gameStatus.classList.add("hidden");
+    }, 3000);
+  });
+
+  socket.on("player_disconnected", (data) => {
+    updateGameState(data.game_state);
   });
 
   socket.on("error", (data) => {
-    console.error("Erro recebido:", data);
-    gameStatusDisplay.textContent = `Erro: ${data.message}`;
+    alert(data.message);
   });
 
-  socket.on("player_disconnected", () => {
-    console.log("Jogador desconectado");
-    gameStatusDisplay.textContent = "O outro jogador desconectou!";
-    newGameBtn.classList.remove("hidden");
-  });
+  // Funções de Atualização da Interface
+  function updateGameState(gameState) {
+    // Atualiza os times
+    teamAPlayers.innerHTML = "";
+    teamBPlayers.innerHTML = "";
 
-  // Funções auxiliares
-  function showGame() {
-    console.log("Mostrando tela do jogo");
-    menu.classList.add("hidden");
-    gameSection.classList.remove("hidden");
-    newGameBtn.classList.add("hidden");
-  }
+    for (const playerId in gameState.players) {
+      const player = gameState.players[playerId];
+      const playerElement = document.createElement("li");
+      playerElement.textContent = `${player.name} (${player.score} pontos)`;
 
-  function updateBoard(boardData) {
-    console.log("Atualizando tabuleiro:", {
-      board: boardData,
-      isMyTurn,
-      playerSymbol,
-      currentRoom,
-    });
-
-    cells.forEach((cell, index) => {
-      const row = Math.floor(index / 3);
-      const col = index % 3;
-      const value = boardData[row][col];
-      cell.textContent = value;
-      cell.className = "cell";
-
-      if (value === "X") {
-        cell.classList.add("x");
-      } else if (value === "O") {
-        cell.classList.add("o");
+      if (player.team === "A") {
+        teamAPlayers.appendChild(playerElement);
+      } else if (player.team === "B") {
+        teamBPlayers.appendChild(playerElement);
       }
-    });
-  }
+    }
 
-  function resetBoard() {
-    console.log("Resetando tabuleiro");
-    cells.forEach((cell) => {
-      cell.textContent = "";
-      cell.className = "cell";
-    });
-    currentRoom = null;
-    playerSymbol = null;
-    isMyTurn = false;
-    gameStatusDisplay.textContent = "";
-    playerInfoDisplay.textContent = "";
-    roomCodeDisplay.textContent = "";
-    gameSection.classList.remove("my-turn");
+    // Atualiza pontuações
+    teamAScore.textContent = gameState.scores.A;
+    teamBScore.textContent = gameState.scores.B;
+
+    // Atualiza controles de desenho e palpites
+    if (gameState.game_started) {
+      if (gameState.current_drawer === playerId) {
+        drawingControls.classList.remove("hidden");
+        gameControls.classList.add("hidden");
+        gameStatus.textContent = "Sua vez de desenhar!";
+        gameStatus.classList.remove("hidden");
+      } else {
+        drawingControls.classList.add("hidden");
+        gameControls.classList.remove("hidden");
+        gameStatus.textContent = "Adivinhe o desenho!";
+        gameStatus.classList.remove("hidden");
+      }
+    }
   }
 });

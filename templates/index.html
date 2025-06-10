@@ -3,7 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Jogo da Velha Online</title>
+    <title>Imagem & Ação Online</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
     <link
       rel="stylesheet"
       href="{{ url_for('static', filename='css/style.css') }}"
@@ -11,40 +15,101 @@
   </head>
   <body>
     <div class="container">
-      <h1>Jogo da Velha Online</h1>
-
-      <div id="menu" class="section">
-        <button id="createGame" class="btn">Criar Novo Jogo</button>
-        <div class="join-game">
-          <input type="text" id="gameCode" placeholder="Código do jogo" />
-          <button id="joinGame" class="btn">Entrar no Jogo</button>
+      <!-- Menu Inicial -->
+      <div id="menu" class="text-center">
+        <h1 class="mb-4">Imagem & Ação Online</h1>
+        <div class="mb-3">
+          <input
+            type="text"
+            id="playerName"
+            class="form-control mb-2"
+            placeholder="Seu nome"
+          />
+          <button id="createGame" class="btn btn-primary btn-lg mb-2">
+            Criar Novo Jogo
+          </button>
+        </div>
+        <div class="mb-3">
+          <input
+            type="text"
+            id="gameCode"
+            class="form-control mb-2"
+            placeholder="Código da sala"
+          />
+          <button id="joinGame" class="btn btn-success btn-lg">
+            Entrar no Jogo
+          </button>
         </div>
       </div>
 
-      <div id="gameSection" class="section hidden">
-        <div id="gameInfo">
-          <p id="roomCode"></p>
-          <p id="playerInfo"></p>
-          <p id="gameStatus"></p>
+      <!-- Seção do Jogo -->
+      <div id="gameSection" class="hidden">
+        <div class="row">
+          <div class="col-md-8">
+            <!-- Área de Desenho -->
+            <div class="canvas-container">
+              <canvas id="drawingCanvas"></canvas>
+              <div id="drawingControls" class="hidden">
+                <div class="color-picker">
+                  <input type="color" id="colorPicker" value="#000000" />
+                </div>
+                <div class="thickness-control">
+                  <input
+                    type="range"
+                    id="thicknessPicker"
+                    min="1"
+                    max="20"
+                    value="5"
+                  />
+                </div>
+                <button id="clearCanvas" class="btn btn-warning">Limpar</button>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <!-- Informações do Jogo -->
+            <div class="game-info">
+              <h3 id="roomCode"></h3>
+              <div id="playerInfo" class="mb-3"></div>
+              <div id="teamInfo" class="mb-3">
+                <div class="team-a">
+                  <h4>Time A</h4>
+                  <ul id="teamAPlayers"></ul>
+                  <p>Pontos: <span id="teamAScore">0</span></p>
+                </div>
+                <div class="team-b">
+                  <h4>Time B</h4>
+                  <ul id="teamBPlayers"></ul>
+                  <p>Pontos: <span id="teamBScore">0</span></p>
+                </div>
+              </div>
+              <div id="hostControls" class="hidden mb-3">
+                <button id="startGame" class="btn btn-primary">
+                  Iniciar Jogo
+                </button>
+              </div>
+              <div id="gameControls" class="hidden">
+                <input
+                  type="text"
+                  id="guessInput"
+                  class="form-control mb-2"
+                  placeholder="Digite seu palpite"
+                />
+                <button id="submitGuess" class="btn btn-success">
+                  Enviar Palpite
+                </button>
+              </div>
+              <div id="gameStatus" class="alert alert-info hidden"></div>
+              <button id="newGame" class="btn btn-primary hidden">
+                Novo Jogo
+              </button>
+            </div>
+          </div>
         </div>
-
-        <div id="board" class="board">
-          <div class="cell" data-row="0" data-col="0"></div>
-          <div class="cell" data-row="0" data-col="1"></div>
-          <div class="cell" data-row="0" data-col="2"></div>
-          <div class="cell" data-row="1" data-col="0"></div>
-          <div class="cell" data-row="1" data-col="1"></div>
-          <div class="cell" data-row="1" data-col="2"></div>
-          <div class="cell" data-row="2" data-col="0"></div>
-          <div class="cell" data-row="2" data-col="1"></div>
-          <div class="cell" data-row="2" data-col="2"></div>
-        </div>
-
-        <button id="newGame" class="btn hidden">Novo Jogo</button>
       </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="{{ url_for('static', filename='js/game.js') }}"></script>
   </body>
 </html>

@@ -2,30 +2,15 @@ from flask import Flask, render_template, request
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_cors import CORS
 from game import Game
-import json
-import os
 import logging
-
-# Configurar logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'jogo-da-velha-secret!')
-app.config['CORS_HEADERS'] = 'Content-Type'
+socketio = SocketIO(app, cors_allowed_origins="*")
 
-socketio = SocketIO(
-    app,
-    cors_allowed_origins="*",
-    async_mode='gevent',
-    logger=True,
-    engineio_logger=True,
-    ping_timeout=60,
-    ping_interval=25,
-    always_connect=True,
-    manage_session=True
-)
+# Configuração de logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Dicionário para armazenar os jogos ativos
 games = {}
@@ -34,131 +19,152 @@ games = {}
 def index():
     return render_template('index.html')
 
-@socketio.on('connect')
-def handle_connect():
-    """Manipula nova conexão."""
-    logger.info(f'Cliente conectado: {request.sid}')
-
-@socketio.on('disconnect')
-def handle_disconnect():
-    """Limpa o jogo quando um jogador desconecta."""
-    logger.info(f'Cliente desconectado: {request.sid}')
-    for room in list(games.keys()):
-        if request.sid in games[room]['players']:
-            emit('player_disconnected', to=room)
-            logger.info(f'Removendo jogo da sala: {room}')
-            del games[room]
-            break
-
 @socketio.on('create_game')
-def on_create_game():
-    """Cria um novo jogo e retorna o código da sala."""
-    import random
-    import string
-    
-    # Gera um código aleatório para a sala
-    room = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-    games[room] = {
-        'game': Game(),
-        'players': [],
-        'current_player': 0
-    }
-    join_room(room)
-    games[room]['players'].append(request.sid)
-    logger.info(f'Novo jogo criado na sala: {room}')
-    emit('game_created', {'room': room})
+def on_create_game(data):
+    """Cria uma nova sala de jogo."""
+    try:
+        room = generate_room_code()
+        games[room] = Game()
+        join_room(room)
+        
+        # Adiciona o jogador como host
+        player_name = data.get('player_name', f'Jogador_{len(games[room].players) + 1}')
+        games[room].add_player(request.sid, player_name)
+        
+        emit('game_created', {
+            'room': room,
+            'is_host': True,
+            'player_id': request.sid
+        })
+        logger.info(f'Jogo criado na sala: {room}')
+    except Exception as e:
+        logger.error(f'Erro ao criar jogo: {str(e)}')
+        emit('error', {'message': 'Erro ao criar jogo'})
 
 @socketio.on('join_game')
 def on_join_game(data):
-    """Permite que um jogador entre em um jogo existente."""
-    room = data['room']
-    logger.info(f'Tentativa de entrar na sala: {room}')
-    
-    if room not in games:
-        logger.warning(f'Sala não encontrada: {room}')
-        emit('error', {'message': 'Sala não encontrada'})
-        return
-        
-    if len(games[room]['players']) >= 2:
-        logger.warning(f'Sala cheia: {room}')
-        emit('error', {'message': 'Sala cheia'})
-        return
-        
-    join_room(room)
-    games[room]['players'].append(request.sid)
-    logger.info(f'Jogador {request.sid} entrou na sala: {room}')
-    
-    # Se este for o segundo jogador, o jogo pode começar
-    if len(games[room]['players']) == 2:
-        logger.info(f'Jogo iniciando na sala: {room}')
-        emit('game_start', {'board': games[room]['game'].board}, to=room)
-        emit('your_turn', {'symbol': 'X'}, to=games[room]['players'][0])
-        emit('wait_turn', {'symbol': 'O'}, to=games[room]['players'][1])
+    """Permite um jogador entrar em uma sala existente."""
+    try:
+        room = data['room'].upper()
+        if room not in games:
+            emit('error', {'message': 'Sala não encontrada'})
+            return
 
-@socketio.on('make_move')
-def on_make_move(data):
-    """Processa uma jogada de um jogador."""
-    room = data['room']
-    row = data['row']
-    col = data['col']
-    
-    if room not in games:
-        logger.warning(f'Tentativa de jogada em sala inexistente: {room}')
-        emit('error', {'message': 'Jogo não encontrado'})
-        return
-        
-    game = games[room]['game']
-    players = games[room]['players']
-    current_player = games[room]['current_player']
-    
-    # Verifica se é a vez do jogador
-    player_idx = players.index(request.sid) if request.sid in players else -1
-    
-    logger.info(f'Jogada recebida: sala={room}, jogador={player_idx}, atual={current_player}, posição=({row}, {col})')
-    
-    if player_idx != current_player:
-        logger.warning(f'Jogada fora de turno na sala {room}. Jogador={player_idx}, Atual={current_player}')
-        emit('error', {'message': 'Não é sua vez'})
-        return
-    
-    # Tenta fazer a jogada
-    if game.make_move(row, col):
-        # Envia o novo estado do tabuleiro para todos
-        board_state = game.board
-        emit('board_update', {'board': board_state}, to=room)
-        logger.info(f'Tabuleiro atualizado na sala {room}: {board_state}')
-        
-        # Verifica se há um vencedor
-        winner = game.check_winner()
-        if winner:
-            logger.info(f'Jogo finalizado na sala {room}. Vencedor: {winner}')
-            emit('game_over', {'winner': winner}, to=room)
-            del games[room]
+        game = games[room]
+        if len(game.players) >= 10:
+            emit('error', {'message': 'Sala cheia'})
             return
-            
-        # Verifica se houve empate
-        if game.is_board_full():
-            logger.info(f'Jogo empatado na sala {room}')
-            emit('game_over', {'winner': 'empate'}, to=room)
-            del games[room]
-            return
-            
-        # Próximo jogador
-        games[room]['current_player'] = 1 - current_player
-        next_player = games[room]['players'][games[room]['current_player']]
-        other_player = games[room]['players'][1 - games[room]['current_player']]
+
+        join_room(room)
+        player_name = data.get('player_name', f'Jogador_{len(game.players) + 1}')
+        game.add_player(request.sid, player_name)
+
+        emit('game_joined', {
+            'room': room,
+            'is_host': request.sid == game.host,
+            'player_id': request.sid
+        })
         
-        logger.info(f'Próximo turno na sala {room}: jogador {games[room]["current_player"]}')
-        emit('your_turn', {'symbol': 'O' if current_player == 0 else 'X'}, to=next_player)
-        emit('wait_turn', {'symbol': 'X' if current_player == 0 else 'O'}, to=other_player)
-    else:
-        logger.warning(f'Jogada inválida na sala {room}: ({row}, {col})')
-        emit('error', {'message': 'Jogada inválida'})
+        # Notifica todos na sala sobre o novo jogador
+        emit('player_joined', {
+            'game_state': game.get_game_state()
+        }, room=room)
+        
+        logger.info(f'Jogador {player_name} entrou na sala: {room}')
+    except Exception as e:
+        logger.error(f'Erro ao entrar no jogo: {str(e)}')
+        emit('error', {'message': 'Erro ao entrar no jogo'})
+
+@socketio.on('start_game')
+def on_start_game(data):
+    """Inicia o jogo quando o host decide começar."""
+    try:
+        room = data['room']
+        game = games.get(room)
+        
+        if not game or request.sid != game.host:
+            emit('error', {'message': 'Apenas o host pode iniciar o jogo'})
+            return
+
+        if game.start_game():
+            emit('game_started', {
+                'game_state': game.get_game_state()
+            }, room=room)
+            logger.info(f'Jogo iniciado na sala: {room}')
+        else:
+            emit('error', {'message': 'Não há jogadores suficientes'})
+    except Exception as e:
+        logger.error(f'Erro ao iniciar jogo: {str(e)}')
+        emit('error', {'message': 'Erro ao iniciar jogo'})
+
+@socketio.on('draw')
+def on_draw(data):
+    """Recebe e transmite os dados do desenho."""
+    try:
+        room = data['room']
+        game = games.get(room)
+        
+        if not game or request.sid != game.current_drawer:
+            return
+
+        # Transmite o desenho para todos na sala exceto o desenhista
+        emit('draw_data', {
+            'points': data['points'],
+            'color': data['color'],
+            'thickness': data['thickness']
+        }, room=room, skip_sid=request.sid)
+    except Exception as e:
+        logger.error(f'Erro ao processar desenho: {str(e)}')
+
+@socketio.on('guess')
+def on_guess(data):
+    """Processa tentativas de adivinhar a palavra."""
+    try:
+        room = data['room']
+        guess = data['guess']
+        game = games.get(room)
+
+        if not game:
+            return
+
+        if game.check_guess(request.sid, guess):
+            emit('correct_guess', {
+                'game_state': game.get_game_state(),
+                'player_id': request.sid
+            }, room=room)
+            logger.info(f'Palavra correta adivinhada na sala: {room}')
+    except Exception as e:
+        logger.error(f'Erro ao processar palpite: {str(e)}')
+
+@socketio.on('disconnect')
+def on_disconnect():
+    """Gerencia a desconexão de jogadores."""
+    try:
+        for room, game in games.items():
+            if request.sid in game.players:
+                game.remove_player(request.sid)
+                leave_room(room)
+                
+                if len(game.players) == 0:
+                    del games[room]
+                    logger.info(f'Sala removida: {room}')
+                else:
+                    emit('player_disconnected', {
+                        'game_state': game.get_game_state()
+                    }, room=room)
+                    logger.info(f'Jogador desconectado da sala: {room}')
+                break
+    except Exception as e:
+        logger.error(f'Erro ao desconectar jogador: {str(e)}')
+
+def generate_room_code(length=4):
+    """Gera um código único para a sala."""
+    import random
+    import string
+    while True:
+        code = ''.join(random.choices(string.ascii_uppercase, k=length))
+        if code not in games:
+            return code
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5001))
-    socketio.run(app,
-                host='0.0.0.0',
-                port=port,
-                allow_unsafe_werkzeug=True,
-                debug=False) 
+    socketio.run(app, host='0.0.0.0', port=5001, debug=True) 
