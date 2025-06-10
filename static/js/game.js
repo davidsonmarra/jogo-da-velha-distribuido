@@ -283,10 +283,21 @@ document.addEventListener("DOMContentLoaded", () => {
     updateGameState(data.game_state);
     hostControls.classList.add("hidden");
     initializeCanvas();
+
+    // Se for o primeiro desenhista, solicita a palavra
+    if (data.game_state.current_drawer === playerId) {
+      console.log("Sou o primeiro desenhista, solicitando palavra...");
+      setTimeout(() => {
+        socket.emit("request_word", { room: currentRoom });
+      }, 1000); // Pequeno delay para garantir que o servidor esteja pronto
+    } else {
+      gameStatus.textContent = "Aguardando o primeiro desenho...";
+      gameStatus.classList.remove("hidden");
+    }
   });
 
   socket.on("word_to_draw", (data) => {
-    console.log("Recebendo palavra para desenhar");
+    console.log("Recebendo palavra para desenhar", data);
     const word = data.word;
 
     // Verifica se é realmente o desenhista atual
