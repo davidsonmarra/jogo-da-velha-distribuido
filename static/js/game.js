@@ -288,11 +288,15 @@ document.addEventListener("DOMContentLoaded", () => {
   socket.on("word_to_draw", (data) => {
     console.log("Recebendo palavra para desenhar");
     const word = data.word;
-    canDraw = true;
-    drawingControls.classList.remove("hidden");
-    gameControls.classList.add("hidden");
-    gameStatus.textContent = `Sua vez de desenhar: "${word}"`;
-    gameStatus.classList.remove("hidden");
+
+    // Verifica se é realmente o desenhista atual
+    if (playerId === data.drawer_id) {
+      canDraw = true;
+      drawingControls.classList.remove("hidden");
+      gameControls.classList.add("hidden");
+      gameStatus.textContent = `Sua vez de desenhar: "${word}"`;
+      gameStatus.classList.remove("hidden");
+    }
   });
 
   socket.on("draw_data", (data) => {
@@ -315,9 +319,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // Atualiza o estado do jogo
     updateGameState(data.game_state);
 
-    // Reseta os controles de desenho
+    // Reseta os controles e estados
     drawingControls.classList.add("hidden");
     gameControls.classList.add("hidden");
+    canDraw = false;
 
     // Mostra mensagem de acerto
     if (data.player_id === playerId) {
@@ -334,11 +339,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Verifica se é o novo desenhista
       if (data.game_state.current_drawer === playerId) {
-        drawingControls.classList.remove("hidden");
-        gameControls.classList.add("hidden");
+        gameStatus.textContent = "Aguardando a palavra para desenhar...";
+        gameStatus.classList.remove("hidden");
+        // Solicita a palavra novamente do servidor
+        socket.emit("request_word", { room: currentRoom });
       } else {
         drawingControls.classList.add("hidden");
         gameControls.classList.remove("hidden");
+        gameStatus.textContent = "Aguardando o próximo desenho...";
+        gameStatus.classList.remove("hidden");
       }
     }, 3000);
   });
@@ -364,6 +373,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const playerElement = document.createElement("li");
       playerElement.textContent = `${player.name} (${player.score} pontos)`;
 
+      // Destaca o desenhista atual
+      if (pid === gameState.current_drawer) {
+        playerElement.textContent += " (Desenhando)";
+        playerElement.style.fontWeight = "bold";
+      }
+
       if (player.team === "A") {
         teamAPlayers.appendChild(playerElement);
       } else if (player.team === "B") {
@@ -383,14 +398,15 @@ document.addEventListener("DOMContentLoaded", () => {
         canDraw: gameState.current_drawer === playerId,
       });
 
-      canDraw = gameState.current_drawer === playerId;
-
-      if (canDraw) {
-        console.log("Você é o desenhista!");
-        // Não mostramos os controles aqui, pois eles serão mostrados quando a palavra for recebida
-        gameControls.classList.add("hidden");
-      } else {
-        console.log("Você deve adivinhar!");
+      if (gameState.current_drawer === playerId && !canDraw) {
+        // Se for o novo desenhista mas ainda não recebeu a palavra
+        gameStatus.textContent = "Aguardando a palavra para desenhar...";
+        gameStatus.classList.remove("hidden");
+        // Solicita a palavra do servidor
+        socket.emit("request_word", { room: currentRoom });
+      } else if (gameState.current_drawer !== playerId) {
+        // Se não for o desenhista
+        canDraw = false;
         drawingControls.classList.add("hidden");
         gameControls.classList.remove("hidden");
         gameStatus.textContent = "Adivinhe o desenho!";
